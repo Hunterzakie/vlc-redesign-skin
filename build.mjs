@@ -1,15 +1,26 @@
 // VLC Redesign skin generator — pure Node, no dependencies.
 // Rebuilds all PNG assets + theme.xml and packages dist/VLC-Redesign.vlt
 // Design concept: "VLC Redesign" by Juxtopposed (Figma Community, CC BY 4.0)
+// Palette read from the Figma file's paint styles (Dark/* tokens).
 import fs from "node:fs";
 import path from "node:path";
 
-// ---------- colors ----------
+// ---------- exact Figma palette (dark) ----------
 const C = {
-  BG0: [19,19,22,255], BG1: [23,23,27,255], BG2: [35,35,41,255],
-  FG: [237,237,242,255], FGDIM: [201,201,209,255], FGMOSS: [154,154,163,255],
-  ACC: [255,136,0,255], ACCB: [255,171,64,255], ACCD: [217,111,0,255],
-  TRACK: [46,46,52,255], STRIP: [17,17,20,235],
+  BG0: [14,14,14,255],          // Dark/BG/B1  #0E0E0E
+  RAISED: [34,34,34,255],       // Dark/BG/A1  #222222
+  SURFACE: [31,31,31,255],      // Dark/BG/A2  #1F1F1F
+  FG1: [234,234,234,255],       // Dark/FG/1   #EAEAEA
+  FG2: [198,198,198,255],       // Dark/FG/2   #C6C6C6
+  FGA1: [150,150,150,255],      // Dark/FG/A1  #969696
+  FGA2: [143,143,143,255],      // Dark/FG/A2  #8F8F8F
+  ACC: [211,121,24,255],        // Accent/Main #D37918
+  ACCB: [252,151,41,255],       // Accent/Bright #FC9729
+  ACCD: [171,99,20,255],        // Accent/Dim #AB6314
+  TRACK: [55,55,55,255],        // Divider/Bright #373737
+  DIVDIM: [34,34,34,255],       // Divider/Dim #222222
+  STRIP: [14,14,14,242],        // B1 Transparent @95%
+  ONACC: [22,22,22,255],        // FG/B1 on-accent #161616
 };
 
 // ---------- canvas ----------
@@ -155,19 +166,23 @@ function makeZip(files) {
 const files = [];
 const add = (name, cv) => files.push({ name, data: pngIndexed(cv) });
 
-function bgTile(r) { const c = cvs(64,64); draw(c,0,0,64,64,rrect(0,0,64,64,r),C.BG0); return c; }
-add("bg_main.png", bgTile(2)); add("bg_pl.png", bgTile(2)); add("bg_eq.png", bgTile(2));
+// backgrounds: tiles at window aspect ratio, r=2 -> 10px radius at full size
+{ const c = cvs(192,112); draw(c,0,0,192,112,rrect(0,0,192,112,2),C.BG0); add("bg_main.png", c); }
+{ const c = cvs(100,70); draw(c,0,0,100,70,rrect(0,0,100,70,2),C.BG0); add("bg_pl.png", c); }
+{ const c = cvs(330,171); draw(c,0,0,330,171,rrect(0,0,330,171,10),C.BG0); add("bg_eq.png", c); }
 { const c = cvs(16,76); draw(c,0,0,16,76,()=>true,C.STRIP); add("ctrl_strip.png", c); }
-{ const c = cvs(16,16); draw(c,0,0,16,16,()=>true,C.BG1); add("pl_bg.png", c); }
+{ const c = cvs(16,16); draw(c,0,0,16,16,()=>true,C.BG0); add("pl_bg.png", c); }
 
-const playS = [0,1,2].map(i => { const c=cvs(52,52); draw(c,0,0,52,52,circle(26,26,25),[C.ACC,C.ACCB,C.ACCD][i]); draw(c,0,0,52,52,tri([22,15],[22,37],[39,26]),C.BG0); return c; });
-const pauseS = [0,1,2].map(i => { const c=cvs(52,52); draw(c,0,0,52,52,circle(26,26,25),[C.ACC,C.ACCB,C.ACCD][i]); draw(c,0,0,52,52,rrect(18,16,6,20,2),C.BG0); draw(c,0,0,52,52,rrect(29,16,6,20,2),C.BG0); return c; });
+// play / pause — icon-only, accent when playing (per design)
+const playS = [C.FG2, C.FG1, C.FGA1].map(col => { const c=cvs(40,40); draw(c,0,0,40,40,tri([16,11],[16,29],[33,20]),col); return c; });
+const pauseS = [C.ACC, C.ACCB, C.ACCD].map(col => { const c=cvs(40,40); draw(c,0,0,40,40,rrect(14,11,4,18,1),col); draw(c,0,0,40,40,rrect(23,11,4,18,1),col); return c; });
 playS.forEach((c,i)=>add(`btn_play_${["up","over","down"][i]}.png`,c));
 pauseS.forEach((c,i)=>add(`btn_pause_${["up","over","down"][i]}.png`,c));
 
+// icon states: idle FG/2, hover FG/1, pressed FG/A1
 const mkIcon = (w,h,fn) => {
   const arr = [];
-  for (const col of [C.FGDIM, C.ACC, C.FG]) { const c=cvs(w,h); fn(c,col); arr.push(c); }
+  for (const col of [C.FG2, C.FG1, C.FGA1]) { const c=cvs(w,h); fn(c,col); arr.push(c); }
   return arr;
 };
 const prevIc = mkIcon(30,30,(c,col)=>{ draw(c,0,0,30,30,rrect(7,10,3,10,1),col); draw(c,0,0,30,30,tri([24,8],[24,22],[13,15]),col); });
@@ -180,26 +195,26 @@ const fsIc = mkIcon(28,28,(c,col)=>{ const t=2.4;
   draw(c,0,0,28,28,rrect(15,21,8,t,1),col); draw(c,0,0,28,28,rrect(21,15,t,8,1),col); });
 const plIc = mkIcon(28,28,(c,col)=>{ for (const y of [7,13,19]) draw(c,0,0,28,28,rrect(5,y,12,2,1),col); draw(c,0,0,28,28,tri([20,8],[27,12.5],[20,17]),col); });
 const eqIc = mkIcon(28,28,(c,col)=>{ for (const x of [6,12,18]) draw(c,0,0,28,28,rrect(x,6,2.4,16,1),col); draw(c,0,0,28,28,circle(7.2,12,2.4),col); draw(c,0,0,28,28,circle(13.2,18,2.4),col); draw(c,0,0,28,28,circle(19.2,9,2.4),col); });
-const volIc = mkIcon(28,28,(c,col)=>{ draw(c,0,0,28,28,tri([5,11],[11,11],[11,17]),col); draw(c,0,0,28,28,rrect(3,11,8,6,1),col);
-  draw(c,0,0,28,28,seg(14,14,16,9,2),col); draw(c,0,0,28,28,seg(16,9,18,10,2),col); draw(c,0,0,28,28,seg(18,10,14,14,2),col);
-  draw(c,0,0,28,28,seg(17,17,21,11,2),col); draw(c,0,0,28,28,seg(21,11,23,12,2),col); draw(c,0,0,28,28,seg(23,12,17,17,2),col); });
-const muteIc = mkIcon(28,28,(c,col)=>{ draw(c,0,0,28,28,tri([5,11],[11,11],[11,17]),col); draw(c,0,0,28,28,rrect(3,11,8,6,1),col);
-  draw(c,0,0,28,28,seg(15,9,24,19,2.2),col); draw(c,0,0,28,28,seg(15,19,24,9,2.2),col); });
+// volume: cone with cap (design's volume cone), mute = cone + slash
+const volIc = mkIcon(28,28,(c,col)=>{ draw(c,0,0,28,28,tri([4,7],[4,21],[19,14]),col); draw(c,0,0,28,28,rrect(20,13,3,2,1),col); });
+const muteIc = mkIcon(28,28,(c,col)=>{ draw(c,0,0,28,28,tri([4,7],[4,21],[19,14]),C.FGA2); draw(c,0,0,28,28,rrect(20,13,3,2,1),C.FGA2); draw(c,0,0,28,28,seg(14,10,24,18,2.2),C.FG1); });
 const closeIc = mkIcon(24,24,(c,col)=>{ draw(c,0,0,24,24,seg(7,7,17,17,2.2),col); draw(c,0,0,24,24,seg(7,17,17,7,2.2),col); });
 const minIc = mkIcon(24,24,(c,col)=>{ draw(c,0,0,24,24,rrect(7,11,10,2,1),col); });
 const iconSets = { prev: prevIc, next: nextIc, menu: menuIc, fs: fsIc, pl: plIc, eq: eqIc, vol: volIc, mute: muteIc, close: closeIc, min: minIc };
 for (const [n, arr] of Object.entries(iconSets)) arr.forEach((c,i)=>add(`ic_${n}_${["up","over","down"][i]}.png`, c));
 
-const seekT = [C.ACC, C.ACCB, C.ACCD].map(col=>{ const c=cvs(14,14); draw(c,0,0,14,14,circle(7,7,6.5),col); return c; });
+// thumbs + led + playtree icons
+const seekT = [C.ACC, C.ACCB, C.ACCD].map(col=>{ const c=cvs(12,12); draw(c,0,0,12,12,circle(6,6,5.5),col); return c; });
 seekT.forEach((c,i)=>add(`thumb_seek_${["up","over","down"][i]}.png`,c));
-for (const [n,col] of [["vol_up",C.ACC],["vol_over",C.ACCB],["vol_down",C.ACCD]]) { const c=cvs(12,12); draw(c,0,0,12,12,circle(6,6,5.5),col); add(`thumb_${n}.png`,c); }
+for (const [n,col] of [["vol_up",C.ACC],["vol_over",C.ACCB],["vol_down",C.ACCD]]) { const c=cvs(10,10); draw(c,0,0,10,10,circle(5,5,4.5),col); add(`thumb_${n}.png`,c); }
 for (const [n,col] of [["eq",C.ACC],["eq_over",C.ACCB]]) { const c=cvs(18,8); draw(c,0,0,18,8,rrect(0,0,18,8,4),col); add(`thumb_${n}.png`,c); }
 { const c=cvs(14,14); draw(c,0,0,14,14,circle(7,7,5.5),C.ACC); add("led_on.png",c); }
-{ const c=cvs(14,14); draw(c,0,0,14,14,circle(7,7,5.5),C.BG2); add("led_off.png",c); }
+{ const c=cvs(14,14); draw(c,0,0,14,14,circle(7,7,5.5),C.RAISED); add("led_off.png",c); }
 { const c=cvs(12,12); draw(c,0,0,12,12,circle(6,6,2.6),C.ACC); add("item.png",c); }
-{ const c=cvs(10,10); draw(c,0,0,10,10,tri([2,3],[8,3],[5,7]),C.FGMOSS); add("collapse.png",c); }
-{ const c=cvs(10,10); draw(c,0,0,10,10,tri([3,2],[3,8],[7,5]),C.FGMOSS); add("expand.png",c); }
+{ const c=cvs(10,10); draw(c,0,0,10,10,tri([2,3],[8,3],[5,7]),C.FGA2); add("collapse.png",c); }
+{ const c=cvs(10,10); draw(c,0,0,10,10,tri([3,2],[3,8],[7,5]),C.FGA2); add("expand.png",c); }
 
+// slider animations: Divider track + Accent fill
 const NSEEK = 41;
 { const c = cvs(NSEEK*100, 16);
   for (let f=0; f<NSEEK; f++) {
@@ -219,7 +234,7 @@ const NSEEK = 41;
   add("volanim.png", c); }
 
 // ---------- theme.xml ----------
-const bmps = files.map(f => `  <Bitmap id="${f.name.replace(".png","")}" file="${f.name}"/>`).join("\n");
+const bmps = files.map(f => `  <Bitmap id="${f.name.replace(".png","")}" file="${f.name}" alphacolor="#FF00FF"/>`).join("\n");
 const bands = Array.from({length:10}, (_,n) =>
   `      <Slider id="eq.band${n}" x="${121+20*n}" y="36" points="(0,115),(0,5)" value="equalizer.band(${n})" tooltiptext="Band ${n}" up="thumb_eq" over="thumb_eq_over" down="thumb_eq_over"/>`).join("\n");
 const theme = `<?xml version="1.0" encoding="UTF-8"?>
@@ -232,23 +247,25 @@ ${bmps}
     <Layout id="normal" width="960" height="560" minwidth="960" maxwidth="960" minheight="420" maxheight="99999">
       <Image id="main.bg" image="bg_main" resize="scale" lefttop="lefttop" rightbottom="rightbottom" action="move"/>
       <Video id="main.video" x="0" y="0" width="960" height="484" lefttop="lefttop" rightbottom="rightbottom"/>
-      <Panel id="main.controls" y="0" width="0" height="76" lefttop="leftbottom" rightbottom="rightbottom">
+      <Text id="main.title" text="$N" font="defaultfont" color="#C6C6C6" x="380" y="16" width="200" alignment="center"/>
+      <Panel id="main.controls" y="0" width="0" height="68" lefttop="leftbottom" rightbottom="rightbottom">
         <Image id="main.controls.strip" image="ctrl_strip" resize="scale" lefttop="lefttop" rightbottom="rightbottom"/>
-        <Button id="main.controls.menu" x="16" y="24" up="ic_menu_up" over="ic_menu_over" down="ic_menu_down" action="dialogs.popup()" tooltiptext="VLC Menu"/>
-        <Button id="main.controls.prev" x="58" y="23" up="ic_prev_up" over="ic_prev_over" down="ic_prev_down" action="vlc.prev()" tooltiptext="Previous"/>
-        <Checkbox id="main.controls.play" x="100" y="12" state="vlc.isPlaying" up1="btn_play_up" up2="btn_pause_up" down1="btn_play_down" down2="btn_pause_down" over1="btn_play_over" over2="btn_pause_over" action1="vlc.play()" action2="vlc.pause()" tooltiptext1="Play" tooltiptext2="Pause"/>
-        <Button id="main.controls.next" x="164" y="23" up="ic_next_up" over="ic_next_over" down="ic_next_down" action="vlc.next()" tooltiptext="Next"/>
-        <Text id="main.controls.time" text="$T / $D" font="defaultfont" color="#C9C9D1" x="212" y="31" width="150" alignment="left"/>
-        <Slider id="main.controls.seek" x="368" y="30" points="(0,8),(340,8)" value="time" tooltiptext="Seek: $T / $D" up="thumb_seek_up" over="thumb_seek_over" down="thumb_seek_down">
-          <SliderBackground id="main.controls.seek.bg" image="seekanim" nbhor="${NSEEK}"/>
+        <Button id="main.controls.menu" x="16" y="20" up="ic_menu_up" over="ic_menu_over" down="ic_menu_down" action="dialogs.popup()" tooltiptext="VLC Menu"/>
+        <Button id="main.controls.prev" x="58" y="19" up="ic_prev_up" over="ic_prev_over" down="ic_prev_down" action="vlc.prev()" tooltiptext="Previous"/>
+        <Checkbox id="main.controls.play" x="96" y="14" state="vlc.isPlaying" up1="btn_play_up" up2="btn_pause_up" down1="btn_play_down" down2="btn_pause_down" over1="btn_play_over" over2="btn_pause_over" action1="vlc.play()" action2="vlc.pause()" tooltiptext1="Play" tooltiptext2="Pause"/>
+        <Button id="main.controls.next" x="144" y="19" up="ic_next_up" over="ic_next_over" down="ic_next_down" action="vlc.next()" tooltiptext="Next"/>
+        <Text id="main.controls.time" text="$T" font="defaultfont" color="#C6C6C6" x="306" y="27" width="40" alignment="right"/>
+        <Slider id="main.controls.seek" x="360" y="27" points="(0,8),(336,8)" value="time" tooltiptext="Seek: $T / $D" up="thumb_seek_up" over="thumb_seek_over" down="thumb_seek_down">
+          <SliderBackground id="main.controls.seek.bg" image="seekanim" nbhoriz="${NSEEK}"/>
         </Slider>
-        <Checkbox id="main.controls.mute" x="716" y="24" state="vlc.isMuted" up1="ic_vol_up" up2="ic_mute_up" down1="ic_vol_down" down2="ic_mute_down" over1="ic_vol_over" over2="ic_mute_over" action1="vlc.mute()" action2="vlc.mute()" tooltiptext1="Mute" tooltiptext2="Unmute"/>
-        <Slider id="main.controls.vol" x="752" y="30" points="(0,8),(44,8)" value="volume" tooltiptext="Volume: $V%" up="thumb_vol_up" over="thumb_vol_over" down="thumb_vol_down">
-          <SliderBackground id="main.controls.vol.bg" image="volanim" nbhor="101"/>
+        <Text id="main.controls.left" text="-$L" font="defaultfont" color="#969696" x="704" y="27" width="48" alignment="left"/>
+        <Checkbox id="main.controls.mute" x="760" y="20" state="vlc.isMuted" up1="ic_vol_up" up2="ic_mute_up" down1="ic_vol_down" down2="ic_mute_down" over1="ic_vol_over" over2="ic_mute_over" action1="vlc.mute()" action2="vlc.mute()" tooltiptext1="Mute" tooltiptext2="Unmute"/>
+        <Slider id="main.controls.vol" x="796" y="27" points="(0,8),(44,8)" value="volume" tooltiptext="Volume: $V%" up="thumb_vol_up" over="thumb_vol_over" down="thumb_vol_down">
+          <SliderBackground id="main.controls.vol.bg" image="volanim" nbhoriz="101"/>
         </Slider>
-        <Button id="main.controls.pl" x="816" y="24" up="ic_pl_up" over="ic_pl_over" down="ic_pl_down" action="plwin.show()" tooltiptext="Playlist"/>
-        <Button id="main.controls.eq" x="854" y="24" up="ic_eq_up" over="ic_eq_over" down="ic_eq_down" action="eqwin.show()" tooltiptext="Equalizer"/>
-        <Button id="main.controls.fs" x="892" y="24" up="ic_fs_up" over="ic_fs_over" down="ic_fs_down" action="vlc.fullscreen()" tooltiptext="Fullscreen"/>
+        <Button id="main.controls.pl" x="852" y="20" up="ic_pl_up" over="ic_pl_over" down="ic_pl_down" action="plwin.show()" tooltiptext="Playlist"/>
+        <Button id="main.controls.eq" x="890" y="20" up="ic_eq_up" over="ic_eq_over" down="ic_eq_down" action="eqwin.show()" tooltiptext="Equalizer"/>
+        <Button id="main.controls.fs" x="928" y="20" up="ic_fs_up" over="ic_fs_over" down="ic_fs_down" action="vlc.fullscreen()" tooltiptext="Fullscreen"/>
       </Panel>
     </Layout>
   </Window>
@@ -258,11 +275,11 @@ ${bmps}
       <Image id="pl.bg" image="bg_pl" resize="scale" lefttop="lefttop" rightbottom="rightbottom" action="move"/>
       <Panel id="pl.titlebar" width="0" height="40" lefttop="lefttop" rightbottom="righttop">
         <Button id="pl.titlebar.menu" x="12" y="8" up="ic_menu_up" over="ic_menu_over" down="ic_menu_down" action="dialogs.popup()" tooltiptext="VLC Menu"/>
-        <Text id="pl.titlebar.text" text="Playlist" font="defaultfont" color="#EDEDF2" x="48" y="12" width="120"/>
+        <Text id="pl.titlebar.text" text="Playlist" font="defaultfont" color="#EAEAEA" x="48" y="12" width="120"/>
         <Button id="pl.titlebar.min" x="436" y="8" up="ic_min_up" over="ic_min_over" down="ic_min_down" action="vlc.minimize()" lefttop="righttop" rightbottom="righttop" tooltiptext="Minimize"/>
         <Button id="pl.titlebar.close" x="464" y="8" up="ic_close_up" over="ic_close_over" down="ic_close_down" action="plwin.hide()" lefttop="righttop" rightbottom="righttop" tooltiptext="Close Playlist"/>
       </Panel>
-      <Playtree id="theplaytree" font="defaultfont" fgcolor="#C9C9D1" selcolor="#FF8800" playcolor="#FF8800" bgimage="pl_bg" itemimage="item" openimage="collapse" closedimage="expand" x="12" y="44" width="476" height="294" lefttop="lefttop" rightbottom="rightbottom"/>
+      <Playtree id="theplaytree" font="defaultfont" fgcolor="#C6C6C6" selcolor="#EAEAEA" playcolor="#FC9729" bgimage="pl_bg" itemimage="item" openimage="collapse" closedimage="expand" x="12" y="44" width="476" height="294" lefttop="lefttop" rightbottom="rightbottom"/>
     </Layout>
   </Window>
 
@@ -270,7 +287,7 @@ ${bmps}
     <Layout id="eqwin-main" width="330" height="171" minwidth="330" maxwidth="330" minheight="171" maxheight="171">
       <Image id="eq.bg" image="bg_eq" resize="scale" lefttop="lefttop" rightbottom="rightbottom" action="move"/>
       <Button id="eq.menu" x="8" y="8" up="ic_menu_up" over="ic_menu_over" down="ic_menu_down" action="dialogs.popup()" tooltiptext="VLC Menu"/>
-      <Text id="eq.title" text="Equalizer" font="defaultfont" color="#EDEDF2" x="44" y="12" width="120"/>
+      <Text id="eq.title" text="Equalizer" font="defaultfont" color="#EAEAEA" x="44" y="12" width="120"/>
       <Checkbox id="eq.onoff" x="286" y="10" state="equalizer.isEnabled" up1="led_off" up2="led_on" down1="none" down2="none" over1="none" over2="none" action1="equalizer.enable()" action2="equalizer.disable()" tooltiptext1="Enable Equalizer" tooltiptext2="Disable Equalizer"/>
       <Button id="eq.close" x="302" y="8" up="ic_close_up" over="ic_close_over" down="ic_close_down" action="eqwin.hide()" lefttop="righttop" rightbottom="righttop" tooltiptext="Close Equalizer"/>
       <Slider id="eq.preamp" x="81" y="36" points="(0,115),(0,5)" value="equalizer.preamp" tooltiptext="Preamp (dB)" up="thumb_eq" over="thumb_eq_over" down="thumb_eq_over"/>
