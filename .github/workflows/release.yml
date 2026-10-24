@@ -1,0 +1,36 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node build.mjs
+      - name: Upload skin folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: vlc-redesign-skin-unpacked
+          path: skin/
+      - name: Create release with .vlt
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v1.0.0
+          name: VLC Redesign Skin v1.0.0
+          artifacts: dist/VLC-Redesign.vlt
+          allowUpdates: true
+          body: |
+            VLC 3 skin based on Juxtopposed's "VLC Redesign" (Figma Community, CC BY 4.0).
+
+            **Install:** VLC → Tools → Preferences → Interface → "Use custom skin" → select `VLC-Redesign.vlt` → Save → restart VLC.
+            (Skins are not supported on macOS builds of VLC.)
